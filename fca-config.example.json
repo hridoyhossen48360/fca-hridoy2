@@ -1,0 +1,64 @@
+{
+  "_comment": "alpha-fca v1.0.0 — Example Config. Copy to config.json and customize.",
+
+  "version": "1.0.0",
+
+  "automation": {
+    "enabled": false,
+    "_comment": "KEEP FALSE. Enabling this allows background task automation (use with care)."
+  },
+
+  "inbox": {
+    "enabled": true,
+    "_comment": "Inbox/getThreadList access. Always true for a working bot."
+  },
+
+  "smooth": {
+    "enabled": true,
+    "messageDelay": 400,
+    "_comment": "When true, shows typing indicator before sending message. Set messageDelay (ms) for natural feel. Recommended: false for low automation."
+  },
+
+  "connection": {
+    "minDelayMs": 1000,
+    "maxDelayMs": 30000,
+    "_comment": "Reconnect backoff range in milliseconds."
+  },
+
+  "e2ee": {
+    "enable": true,
+    "saveType": "memory",
+    "devicePath": "./data/e2ee-device.json",
+    "autoReconnect": true,
+    "logLevel": "none",
+    "_comments": {
+      "enable": "Set to true to activate E2EE Labyrinth bridge.",
+      "saveType": "'memory' = keys lost on restart (safe). 'path' = persist keys to disk (survives restart).",
+      "devicePath": "Used only when saveType='path'. Relative to your bot's CWD.",
+      "autoReconnect": "E2EE bridge auto-reconnects on disconnect.",
+      "logLevel": "'none' = silent. 'error'/'warn'/'info' = verbose."
+    }
+  },
+
+  "imgKeys": {
+    "imgbb": null,
+    "ik_pub": null,
+    "ik_priv": null,
+    "_comment": "Optional image hosting API keys. Leave null to disable image hosting."
+  },
+
+  "enableTypingIndicator": false,
+  "typingDuration": 4000,
+
+  "_listenOptions": {
+    "selfListen": true,
+    "listenEvents": true,
+    "listenTyping": false,
+    "updatePresence": false,
+    "autoMarkDelivery": false,
+    "autoMarkRead": false,
+    "autoReconnect": true,
+    "online": false,
+    "_comment": "These go in the options param of login(), not in this file. Shown here for reference."
+  }
+}

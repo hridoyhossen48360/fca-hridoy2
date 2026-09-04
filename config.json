@@ -1,0 +1,60 @@
+{
+  "_info": "toru-fca v1.0.8 — Main Config",
+  "version": "1.0.8",
+
+  "antiLogout": {
+    "enabled": true,
+    "refreshIntervalMs": 1200000,
+    "_note": "fb_dtsg হর 20 মিনিটে refresh — session alive রাখে। Browser logout হবে না।"
+  },
+
+  "sessionGuard": {
+    "enabled": true,
+    "intervalMs": 180000,
+    "debounceMs": 20000,
+    "backupEnabled": true,
+    "_note": "Appstate হর 3 মিনিটে auto-save। .bak backup রাখে। Cookie expiry extend করে।"
+  },
+
+  "automation": {
+    "enabled": false,
+    "_note": "KEEP FALSE। Background automation বন্ধ রাখে।"
+  },
+
+  "smooth": {
+    "enabled": true,
+    "messageDelay": 300,
+    "_note": "Send করার আগে typing indicator দেখাবে। 300ms delay — human-like behavior।"
+  },
+
+  "connection": {
+    "minDelayMs": 3000,
+    "maxDelayMs": 60000,
+    "_note": "MQTT reconnect backoff range।"
+  },
+
+  "e2ee": {
+    "enable": true,
+    "saveType": "memory",
+    "devicePath": "./data/e2ee-device.json",
+    "autoReconnect": true,
+    "logLevel": "none",
+    "_note": "E2EE Labyrinth bridge। DM + group support।"
+  },
+
+  "facebookProtection": {
+    "enabled": true,
+    "blockAutomationDetection": true,
+    "humanLikeDelay": true,
+    "_note": "online=false, updatePresence=false। Human-like 50-200ms micro-delay। Account restriction থেকে সুরক্ষা।"
+  },
+
+  "inbox": {
+    "enabled": true,
+    "replyToInbox": true,
+    "_note": "Bot inbox/DM এবং group উভয়তেই reply করবে।"
+  },
+
+  "enableTypingIndicator": false,
+  "typingDuration": 4000
+}
