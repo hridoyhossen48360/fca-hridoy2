@@ -1,4 +1,4 @@
-# toru-fca v1.0.6
+# toru-fca v1.0.8
 
 **Ultimate Merged, Fixed & Advanced Facebook Chat API**
 
