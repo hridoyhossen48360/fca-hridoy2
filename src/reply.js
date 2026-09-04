@@ -1,6 +1,7 @@
 "use strict";
 
 var utils = require("../utils");
+var log = require("npmlog");
 // @NethWs3Dev
 
 var allowedProperties = {
@@ -16,22 +17,27 @@ var allowedProperties = {
 
 module.exports = function (defaultFuncs, api, ctx) {
   function uploadAttachment(attachments, callback) {
+    if (!attachments || !attachments.length) {
+      log.error("reply", "uploadAttachment called with empty attachments array");
+      return callback({ error: "No attachments provided" });
+    }
+
     var uploads = [];
 
     // create an array of promises
     for (var i = 0; i < attachments.length; i++) {
       if (!utils.isReadableStream(attachments[i])) {
-        throw {
+        return callback({
           error:
             "Attachment should be a readable stream and not " +
             utils.getType(attachments[i]) +
-            "."
-        };
+            ".",
+        });
       }
 
       var form = {
         upload_1024: attachments[i],
-        voice_clip: "true"
+        voice_clip: "true",
       };
 
       uploads.push(
@@ -61,7 +67,7 @@ module.exports = function (defaultFuncs, api, ctx) {
         callback(null, resData);
       })
       .catch(function (err) {
-        utils.error("uploadAttachment", err);
+        log.error("reply", "uploadAttachment error", err);
         return callback(err);
       });
   }
@@ -70,7 +76,7 @@ module.exports = function (defaultFuncs, api, ctx) {
     var form = {
       image_height: 960,
       image_width: 960,
-      uri: url
+      uri: url,
     };
 
     defaultFuncs
@@ -92,7 +98,7 @@ module.exports = function (defaultFuncs, api, ctx) {
         callback(null, resData.payload.share_data.share_params);
       })
       .catch(function (err) {
-        utils.error("getUrl", err);
+        log.error("reply", "getUrl error", err);
         return callback(err);
       });
   }
@@ -109,7 +115,7 @@ module.exports = function (defaultFuncs, api, ctx) {
       }
       form["specific_to_list[" + threadID.length + "]"] = "fbid:" + ctx.userID;
       form["client_thread_id"] = "root:" + messageAndOTID;
-      utils.log("sendMessage", "Sending message to multiple users: " + threadID);
+      log.info("reply", "Sending message to multiple users: " + threadID);
     } else {
       // This means that threadID is the id of a user, and the chat
       // is a single person chat
@@ -122,7 +128,7 @@ module.exports = function (defaultFuncs, api, ctx) {
       }
     }
 
-    if (ctx.globalOptions.pageID) {
+    if (ctx.globalOptions && ctx.globalOptions.pageID) {
       form["author"] = "fbid:" + ctx.globalOptions.pageID;
       form["specific_to_list[1]"] = "fbid:" + ctx.globalOptions.pageID;
       form["creator_info[creatorID]"] = ctx.userID;
@@ -144,29 +150,36 @@ module.exports = function (defaultFuncs, api, ctx) {
 
         if (resData.error) {
           if (resData.error === 1545012) {
-            utils.warn(
-              "sendMessage",
+            log.warn(
+              "reply",
               "Got error 1545012. This might mean that you're not part of the conversation " +
-              threadID
+                threadID
             );
           }
           return callback(resData);
         }
 
-        var messageInfo = resData.payload.actions.reduce(function (p, v) {
-          return (
-            {
-              threadID: v.thread_fbid,
-              messageID: v.message_id,
-              timestamp: v.timestamp
-            } || p
-          );
-        }, null);
+        var messageInfo = null;
+        try {
+          if (resData.payload && Array.isArray(resData.payload.actions)) {
+            messageInfo = resData.payload.actions.reduce(function (p, v) {
+              return (
+                {
+                  threadID: v.thread_fbid,
+                  messageID: v.message_id,
+                  timestamp: v.timestamp,
+                } || p
+              );
+            }, null);
+          }
+        } catch (e) {
+          log.warn("reply", "Failed to parse messageInfo", e);
+        }
 
         return callback(null, messageInfo);
       })
       .catch(function (err) {
-        utils.error("sendMessage", err);
+        log.error("reply", "sendMessage error", err);
         return callback(err);
       });
   }
@@ -179,9 +192,8 @@ module.exports = function (defaultFuncs, api, ctx) {
       sendContent(form, threadID, false, messageAndOTID, callback);
     } else {
       if (utils.getType(isGroup) != "Boolean")
-        sendContent(form, threadID, threadID.length <= 15, messageAndOTID, callback);
-      else
-        sendContent(form, threadID, !isGroup, messageAndOTID, callback);
+        sendContent(form, threadID, threadID && threadID.length <= 15, messageAndOTID, callback);
+      else sendContent(form, threadID, !isGroup, messageAndOTID, callback);
     }
   }
 
@@ -285,22 +297,23 @@ module.exports = function (defaultFuncs, api, ctx) {
           return callback({ error: "Mention tags must be strings." });
         }
 
-        const offset = msg.body.indexOf(tag, mention.fromIndex || 0);
+        const bodyText = (msg.body || "");
+        const offset = bodyText.indexOf(tag, mention.fromIndex || 0);
 
         if (offset < 0) {
-          utils.warn(
-            "handleMention",
+          log.warn(
+            "reply",
             'Mention for "' + tag + '" not found in message string.'
           );
         }
 
         if (mention.id == null) {
-          utils.warn("handleMention", "Mention id should be non-null.");
+          log.warn("reply", "Mention id should be non-null.");
         }
 
         const id = mention.id || 0;
-        const emptyChar = '\u200E';
-        form["body"] = emptyChar + msg.body;
+        const emptyChar = "\u200E";
+        form["body"] = emptyChar + (msg.body || "");
         form["profile_xmd[" + i + "][offset]"] = offset + 1;
         form["profile_xmd[" + i + "][length]"] = tag.length;
         form["profile_xmd[" + i + "][id]"] = id;
@@ -311,7 +324,7 @@ module.exports = function (defaultFuncs, api, ctx) {
   }
 
   return function sendMessage(msg, threadID, callback, replyToMessage, isGroup) {
-    typeof isGroup == "undefined" ? isGroup = null : "";
+    typeof isGroup == "undefined" ? (isGroup = null) : "";
     if (
       !callback &&
       (utils.getType(threadID) === "Function" ||
@@ -319,16 +332,13 @@ module.exports = function (defaultFuncs, api, ctx) {
     ) {
       return threadID({ error: "Pass a threadID as a second argument." });
     }
-    if (
-      !replyToMessage &&
-      utils.getType(callback) === "String"
-    ) {
+    if (!replyToMessage && utils.getType(callback) === "String") {
       replyToMessage = callback;
       callback = undefined;
     }
 
-    var resolveFunc = function () { };
-    var rejectFunc = function () { };
+    var resolveFunc = function () {};
+    var rejectFunc = function () {};
     var returnPromise = new Promise(function (resolve, reject) {
       resolveFunc = resolve;
       rejectFunc = reject;
@@ -347,8 +357,7 @@ module.exports = function (defaultFuncs, api, ctx) {
 
     if (msgType !== "String" && msgType !== "Object") {
       return callback({
-        error:
-          "Message should be of type string or object and not " + msgType + "."
+        error: "Message should be of type string or object and not " + msgType + ".",
       });
     }
 
@@ -362,16 +371,16 @@ module.exports = function (defaultFuncs, api, ctx) {
         error:
           "ThreadID should be of type number, string, or array and not " +
           threadIDType +
-          "."
+          ".",
       });
     }
 
-    if (replyToMessage && messageIDType !== 'String') {
+    if (replyToMessage && messageIDType !== "String") {
       return callback({
         error:
           "MessageID should be of type string and not " +
-          threadIDType +
-          "."
+          messageIDType +
+          ".",
       });
     }
 
@@ -379,12 +388,10 @@ module.exports = function (defaultFuncs, api, ctx) {
       msg = { body: msg };
     }
 
-    var disallowedProperties = Object.keys(msg).filter(
-      prop => !allowedProperties[prop]
-    );
+    var disallowedProperties = Object.keys(msg).filter((prop) => !allowedProperties[prop]);
     if (disallowedProperties.length > 0) {
       return callback({
-        error: "Dissallowed props: `" + disallowedProperties.join(", ") + "`"
+        error: "Disallowed props: `" + disallowedProperties.join(", ") + "`",
       });
     }
 
@@ -416,11 +423,11 @@ module.exports = function (defaultFuncs, api, ctx) {
       offline_threading_id: messageAndOTID,
       message_id: messageAndOTID,
       threading_id: utils.generateThreadingID(ctx.clientID),
-      "ephemeral_ttl_mode:": "0",
+      ephemeral_ttl_mode: "0",
       manual_retry_cnt: "0",
       has_attachment: !!(msg.attachment || msg.url || msg.sticker),
       signatureID: utils.getSignatureID(),
-      replied_to_message_id: replyToMessage
+      replied_to_message_id: replyToMessage,
     };
 
     handleLocation(msg, form, callback, () =>
@@ -428,9 +435,7 @@ module.exports = function (defaultFuncs, api, ctx) {
         handleAttachment(msg, form, callback, () =>
           handleUrl(msg, form, callback, () =>
             handleEmoji(msg, form, callback, () =>
-              handleMention(msg, form, callback, () =>
-                send(form, threadID, messageAndOTID, callback, isGroup)
-              )
+              handleMention(msg, form, callback, () => send(form, threadID, messageAndOTID, callback, isGroup))
             )
           )
         )
